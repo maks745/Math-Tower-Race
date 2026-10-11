@@ -1,4 +1,69 @@
 -- Math Tower Race: displays answers; optional auto mode starts disabled.
+local language="en"
+local function languageForLocale(locale)
+    local primary=tostring(locale or ""):lower():match("^([a-z]+)")
+    return primary=="ru" and "ru" or "en"
+end
+local englishText={
+    ["Введи задержку от 0 до 120 секунд"]="Enter a delay from 0 to 120 seconds",
+    ["Границы должны быть от 0 до 120 секунд"]="Both limits must be from 0 to 120 seconds",
+    ["Значение «От» должно быть не больше «До»"]="Minimum must not exceed maximum",
+    ["Выбери режим задержки"]="Choose a delay mode",
+    ["Запусти внутри игры на клиенте"]="Run this script in the game client",
+    ["MATH  /  помощник"]="MATH  /  helper",
+    ["ПРАВИЛЬНЫЙ ОТВЕТ"]="CORRECT ANSWER",
+    ["Ожидание вопроса..."]="Waiting for a question...",
+    ["Авто: ВЫКЛ"]="Auto: OFF",
+    ["Авто: ВКЛ"]="Auto: ON",
+    ["Настройки задержки"]="Delay settings",
+    ["Ручной выбор ответа"]="Choose the answer manually",
+    ["ЗАДЕРЖКА НАЖАТИЯ"]="CLICK DELAY",
+    ["Фиксированная"]="Fixed",
+    ["Случайная"]="Random",
+    ["Секунды"]="Seconds",
+    ["Задержка, сек."]="Delay, seconds",
+    ["От, сек."]="Minimum, seconds",
+    ["До, сек."]="Maximum, seconds",
+    ["Можно вводить дробные секунды: 1,5"]="Decimals are supported, for example 1.5",
+    ["Применить"]="Apply",
+    ["Задержка: %.2g сек."]="Delay: %.2g seconds",
+    ["Случайная задержка: %.2g–%.2g сек."]="Random delay: %.2g–%.2g seconds",
+    ["Ожидание правильного варианта..."]="Waiting for the correct option...",
+    ["Сохранено. Задержка отсчитывается до клика."]="Saved. The delay is counted before clicking.",
+    ["Отправлен клик VirtualInput"]="Click sent via VirtualInput",
+    ["Отправлен клик VirtualInputManager"]="Click sent via VirtualInputManager",
+    ["Виртуальный ввод недоступен"]="Virtual input is unavailable",
+    ["Кнопка ответа недоступна"]="The answer button is unavailable",
+    ["Отправлен сигнал Activated"]="Activated signal sent",
+    ["Вызван обработчик "]="Handler called: ",
+    ["MATH HELPER: обработчик недоступен:"]="MATH HELPER: handler unavailable:",
+    ["Ожидание обновления вопроса..."]="Waiting for the question to update...",
+    ["Ожидание нового вопроса..."]="Waiting for a new question...",
+    ["Не распознано: "]="Not recognized: ",
+    ["Этот вопрос нужно решить вручную"]="Please solve this question manually",
+    ["Чётное"]="Even",
+    ["Нечётное"]="Odd",
+    ["Ответ: "]="Answer: ",
+    ["  |  Кнопка: "]="  |  Button: ",
+    ["Нет подходящей кнопки — выбери ответ вручную"]="No matching button — choose the answer manually",
+    ["Время вопроса истекло — ответ пропущен"]="Time is up — answer skipped",
+    ["Нажатие через %.1f сек.  ·  Задержка %.1f сек."]="Click in %.1f s  ·  Delay %.1f s",
+    ["Кнопка "]="Button ",
+    ["Авто отключено: "]="Auto disabled: ",
+    ["MATH HELPER: запущен; авто выключено, включается кнопкой"]="MATH HELPER: ready; use the button to enable auto",
+    ["Ошибка: "]="Error: ",
+}
+local function tr(text)
+    if language=="ru" then return text end
+    return englishText[text] or text
+end
+local russianResults={
+    ["Right Angle"]="Прямой угол",["Acute Angle"]="Острый угол",
+    ["Obtuse Angle"]="Тупой угол",["Straight Angle"]="Развёрнутый угол",
+    ["Parallel Lines"]="Параллельные линии",["Perpendicular Lines"]="Перпендикулярные линии",
+    ["Intersecting Lines"]="Пересекающиеся линии",
+}
+-- END TRANSLATIONS
 local fractionMap = {
     ["½"]="(1/2)", ["⅓"]="(1/3)", ["⅔"]="(2/3)",
     ["¼"]="(1/4)", ["¾"]="(3/4)", ["⅕"]="(1/5)",
@@ -253,15 +318,15 @@ local function parseDelaySettings(mode,fixed,minimum,maximum)
     end
     if mode=="fixed" then
         local n=number(fixed)
-        if not n then return nil,"Введи задержку от 0 до 120 секунд" end
+        if not n then return nil,tr("Введи задержку от 0 до 120 секунд") end
         return {mode="fixed",fixed=n}
     elseif mode=="random" then
         local low,high=number(minimum),number(maximum)
-        if not low or not high then return nil,"Границы должны быть от 0 до 120 секунд" end
-        if low>high then return nil,"Значение «От» должно быть не больше «До»" end
+        if not low or not high then return nil,tr("Границы должны быть от 0 до 120 секунд") end
+        if low>high then return nil,tr("Значение «От» должно быть не больше «До»") end
         return {mode="random",minimum=low,maximum=high}
     end
-    return nil,"Выбери режим задержки"
+    return nil,tr("Выбери режим задержки")
 end
 local function pickDelay(settings,random)
     if settings.mode=="random" then
@@ -272,7 +337,17 @@ end
 
 -- ROBLOX UI
 local player = game:GetService("Players").LocalPlayer
-assert(player, "Запусти внутри игры на клиенте")
+assert(player, tr("Запусти внутри игры на клиенте"))
+local locale
+local localeOK,robloxLocale=pcall(function()
+    return game:GetService("LocalizationService").RobloxLocaleId
+end)
+if localeOK and type(robloxLocale)=="string" and robloxLocale~="" then locale=robloxLocale end
+if not locale then
+    local ok,accountLocale=pcall(function() return player.LocaleId end)
+    if ok then locale=accountLocale end
+end
+language=languageForLocale(locale)
 local gui = player:WaitForChild("PlayerGui")
 local env = (getgenv and getgenv()) or _G
 for _, name in ipairs({"MathRaceSolver", "MathRaceAnswerHelper"}) do
@@ -331,12 +406,12 @@ local function button(parent,value,x,y,w,h)
     return obj
 end
 local root=make("Frame",panel,{Name="Window",Position=UDim2.fromOffset(18,190),
-    Size=UDim2.fromOffset(350,232),BackgroundColor3=colors.background,BorderSizePixel=0})
+    Size=UDim2.fromOffset(350,232),BackgroundColor3=colors.background,BorderSizePixel=0,AutoLocalize=false})
 rounded(root,14)
 local windowScale=make("UIScale",root,{Scale=1})
 make("UIStroke",root,{Color=Color3.fromRGB(62,72,104),Thickness=1,Transparency=0.25})
 local header=make("Frame",root,{Size=UDim2.new(1,-54,0,46),BackgroundTransparency=1,Active=true})
-local title=text(header,"MATH  /  помощник",18,8,265,30,16)
+local title=text(header,tr("MATH  /  помощник"),18,8,265,30,16)
 title.Font=Enum.Font.GothamBold
 local minimize=button(root,"−",306,10,30,28)
 local body=make("Frame",root,{Position=UDim2.fromOffset(0,46),
@@ -344,39 +419,39 @@ local body=make("Frame",root,{Position=UDim2.fromOffset(0,46),
 local answerCard=make("Frame",body,{Position=UDim2.fromOffset(14,0),
     Size=UDim2.fromOffset(322,66),BackgroundColor3=colors.card,BorderSizePixel=0})
 rounded(answerCard,10)
-text(answerCard,"ПРАВИЛЬНЫЙ ОТВЕТ",12,7,298,14,10,colors.muted)
-local label=text(answerCard,"Ожидание вопроса...",12,24,298,35,19,colors.green)
+text(answerCard,tr("ПРАВИЛЬНЫЙ ОТВЕТ"),12,7,298,14,10,colors.muted)
+local label=text(answerCard,tr("Ожидание вопроса..."),12,24,298,35,19,colors.green)
 label.Font=Enum.Font.GothamBold
-local autoButton=button(body,"Авто: ВЫКЛ",14,77,155,36)
-local settingsButton=button(body,"Настройки задержки",181,77,155,36)
-local autoStatus=text(body,"Ручной выбор ответа",16,118,318,33,12,colors.muted)
+local autoButton=button(body,tr("Авто: ВЫКЛ"),14,77,155,36)
+local settingsButton=button(body,tr("Настройки задержки"),181,77,155,36)
+local autoStatus=text(body,tr("Ручной выбор ответа"),16,118,318,33,12,colors.muted)
 local delaySummary=text(body,"",16,151,318,20,12,colors.muted)
 local settingsFrame=make("Frame",body,{Position=UDim2.fromOffset(14,183),
     Size=UDim2.fromOffset(322,215),BackgroundColor3=colors.card,BorderSizePixel=0,Visible=false})
 rounded(settingsFrame,10)
-text(settingsFrame,"ЗАДЕРЖКА НАЖАТИЯ",12,9,298,20,11,colors.muted)
-local fixedButton=button(settingsFrame,"Фиксированная",12,35,143,32)
-local randomButton=button(settingsFrame,"Случайная",167,35,143,32)
+text(settingsFrame,tr("ЗАДЕРЖКА НАЖАТИЯ"),12,9,298,20,11,colors.muted)
+local fixedButton=button(settingsFrame,tr("Фиксированная"),12,35,143,32)
+local randomButton=button(settingsFrame,tr("Случайная"),167,35,143,32)
 local fixedFields=make("Frame",settingsFrame,{Position=UDim2.fromOffset(12,78),
     Size=UDim2.fromOffset(298,65),BackgroundTransparency=1})
 local randomFields=make("Frame",settingsFrame,{Position=UDim2.fromOffset(12,78),
     Size=UDim2.fromOffset(298,65),BackgroundTransparency=1,Visible=false})
 local function input(parent,value,x,width)
     local obj=make("TextBox",parent,{Position=UDim2.fromOffset(x,23),
-        Size=UDim2.fromOffset(width,36),Text=tostring(value),PlaceholderText="Секунды",
+        Size=UDim2.fromOffset(width,36),Text=tostring(value),PlaceholderText=tr("Секунды"),
         BackgroundColor3=colors.background,BorderSizePixel=0,TextColor3=colors.text,
         Font=Enum.Font.GothamMedium,TextSize=17,ClearTextOnFocus=false})
     rounded(obj,8)
     return obj
 end
-text(fixedFields,"Задержка, сек.",0,0,298,20,12,colors.muted)
+text(fixedFields,tr("Задержка, сек."),0,0,298,20,12,colors.muted)
 local fixedInput=input(fixedFields,settings.fixed,0,298)
-text(randomFields,"От, сек.",0,0,143,20,12,colors.muted)
-text(randomFields,"До, сек.",155,0,143,20,12,colors.muted)
+text(randomFields,tr("От, сек."),0,0,143,20,12,colors.muted)
+text(randomFields,tr("До, сек."),155,0,143,20,12,colors.muted)
 local minInput=input(randomFields,settings.minimum,0,143)
 local maxInput=input(randomFields,settings.maximum,155,143)
-local settingsMessage=text(settingsFrame,"Можно вводить дробные секунды: 1,5",12,145,298,27,11,colors.muted)
-local applyButton=button(settingsFrame,"Применить",12,177,298,28)
+local settingsMessage=text(settingsFrame,tr("Можно вводить дробные секунды: 1,5"),12,145,298,27,11,colors.muted)
+local applyButton=button(settingsFrame,tr("Применить"),12,177,298,28)
 applyButton.BackgroundColor3=colors.accent
 local draftMode=settings.mode
 local function refreshMode()
@@ -387,18 +462,18 @@ local function refreshMode()
 end
 local function refreshSummary()
     delaySummary.Text=settings.mode=="fixed"
-        and string.format("Задержка: %.2g сек.",settings.fixed)
-        or string.format("Случайная задержка: %.2g–%.2g сек.",settings.minimum,settings.maximum)
+        and string.format(tr("Задержка: %.2g сек."),settings.fixed)
+        or string.format(tr("Случайная задержка: %.2g–%.2g сек."),settings.minimum,settings.maximum)
 end
 local function refreshAuto()
-    autoButton.Text=state.auto and "Авто: ВКЛ" or "Авто: ВЫКЛ"
+    autoButton.Text=state.auto and tr("Авто: ВКЛ") or tr("Авто: ВЫКЛ")
     autoButton.BackgroundColor3=state.auto and Color3.fromRGB(28,99,75) or colors.card
 end
 autoButton.Activated:Connect(function()
     state.auto=not state.auto
     autoRound.pendingAt=nil
     refreshAuto()
-    autoStatus.Text=state.auto and "Ожидание правильного варианта..." or "Ручной выбор ответа"
+    autoStatus.Text=state.auto and tr("Ожидание правильного варианта...") or tr("Ручной выбор ответа")
 end)
 fixedButton.Activated:Connect(function() draftMode="fixed"; refreshMode() end)
 randomButton.Activated:Connect(function() draftMode="random"; refreshMode() end)
@@ -413,7 +488,7 @@ applyButton.Activated:Connect(function()
     autoRound.pendingAt=nil
     refreshSummary()
     settingsMessage.TextColor3=colors.green
-    settingsMessage.Text="Сохранено. Задержка отсчитывается до клика."
+    settingsMessage.Text=tr("Сохранено. Задержка отсчитывается до клика.")
 end)
 local collapsed=false
 local function fitWindow()
@@ -618,7 +693,7 @@ local function virtualClick(btn)
             task.wait(0.04)
             input:SendMouseButton(Vector2.new(x,y),Enum.UserInputType.MouseButton1,false,0)
         end)
-        if success then return true,"Отправлен клик VirtualInput" end
+        if success then return true,tr("Отправлен клик VirtualInput") end
         lastError=tostring(err)
         if pressed then
             pcall(function()
@@ -637,19 +712,19 @@ local function virtualClick(btn)
         task.wait(0.04)
         manager:SendMouseButtonEvent(x,y,0,false,game,0)
     end)
-    if success then return true,"Отправлен клик VirtualInputManager" end
+    if success then return true,tr("Отправлен клик VirtualInputManager") end
     if pressed then
         pcall(function() manager:SendMouseButtonEvent(x,y,0,false,game,0) end)
     end
-    return false,tostring(err or lastError or "Виртуальный ввод недоступен")
+    return false,tostring(err or lastError or tr("Виртуальный ввод недоступен"))
 end
 local function sendAnswer(btn)
     if not visible(btn) or not btn.Active or not btn.Interactable then
-        return false,"Кнопка ответа недоступна"
+        return false,tr("Кнопка ответа недоступна")
     end
     if type(firesignal)=="function" then
         local ok,err=pcall(function() firesignal(btn.Activated,nil,1) end)
-        if ok then return true,"Отправлен сигнал Activated" end
+        if ok then return true,tr("Отправлен сигнал Activated") end
     end
     -- Try one event only, so a single answer is not submitted through several events.
     for _, name in ipairs(type(getconnections)=="function" and {"Activated","MouseButton1Click"} or {}) do
@@ -684,8 +759,8 @@ local function sendAnswer(btn)
                 if success and called then sent=sent+1 end
                 if not success then lastError=tostring(called) end
             end
-            if sent>0 then return true,"Вызван обработчик "..name end
-            if lastError then warn("MATH HELPER: обработчик недоступен:",lastError) end
+            if sent>0 then return true,tr("Вызван обработчик ")..name end
+            if lastError then warn(tr("MATH HELPER: обработчик недоступен:"),lastError) end
         end
     end
     return virtualClick(btn)
@@ -698,7 +773,7 @@ local function observeRound(signature,countdown,now)
         autoRound.handled=false
         autoRound.pendingAt=nil
         autoRound.delay=nil
-        if state.auto then autoStatus.Text="Ожидание обновления вопроса..." end
+        if state.auto then autoStatus.Text=tr("Ожидание обновления вопроса...") end
     end
     autoRound.countdown=countdown
 end
@@ -718,12 +793,12 @@ local function update()
         end
     end
     if not topic then
-        label.Text="Ожидание вопроса..."
+        label.Text=tr("Ожидание вопроса...")
         autoRound.signature=nil
         autoRound.handled=false
         autoRound.countdown=nil
         autoRound.pendingAt=nil
-        if state.auto then autoStatus.Text="Ожидание нового вопроса..." end
+        if state.auto then autoStatus.Text=tr("Ожидание нового вопроса...") end
         return
     end
     local answers={}
@@ -749,9 +824,9 @@ local function update()
     observeRound(table.concat(parts,"|"),countdown,os.clock())
     if result==nil then
         label.TextColor3=Color3.fromRGB(255,210,100)
-        label.Text="Не распознано: "..topic.Text
+        label.Text=tr("Не распознано: ")..topic.Text
         autoRound.pendingAt=nil
-        if state.auto then autoStatus.Text="Этот вопрос нужно решить вручную" end
+        if state.auto then autoStatus.Text=tr("Этот вопрос нужно решить вручную") end
         return
     end
     local index
@@ -759,13 +834,14 @@ local function update()
         if answerMatches(result,answer.text) then index=answer.index; break end
     end
     local displayed=type(result)=="number" and string.format("%.10g",result) or result
-    if result=="even" then displayed="Чётное" elseif result=="odd" then displayed="Нечётное" end
+    if result=="even" then displayed=tr("Чётное") elseif result=="odd" then displayed=tr("Нечётное") end
+    if language=="ru" then displayed=russianResults[result] or displayed end
     label.TextColor3=Color3.fromRGB(100,255,140)
-    label.Text="Ответ: "..displayed..(index and "  |  Кнопка: "..index or "")
+    label.Text=tr("Ответ: ")..displayed..(index and tr("  |  Кнопка: ")..index or "")
     if not state.auto or autoRound.handled then return end
     if not index then
         autoRound.pendingAt=nil
-        autoStatus.Text="Нет подходящей кнопки — выбери ответ вручную"
+        autoStatus.Text=tr("Нет подходящей кнопки — выбери ответ вручную")
         return
     end
     local now=os.clock()
@@ -778,7 +854,7 @@ local function update()
     if countdown and countdown<=0 then
         autoRound.handled=true
         autoRound.pendingAt=nil
-        autoStatus.Text="Время вопроса истекло — ответ пропущен"
+        autoStatus.Text=tr("Время вопроса истекло — ответ пропущен")
         return
     end
     if not autoRound.pendingAt then
@@ -787,28 +863,28 @@ local function update()
     end
     local remaining=autoRound.pendingAt-now
     if remaining>0 then
-        autoStatus.Text=string.format("Нажатие через %.1f сек.  ·  Задержка %.1f сек.",remaining,autoRound.delay)
+        autoStatus.Text=string.format(tr("Нажатие через %.1f сек.  ·  Задержка %.1f сек."),remaining,autoRound.delay)
         return
     end
     autoRound.handled=true
     local ok,message=sendAnswer(btn)
     if ok then
-        autoStatus.Text="Кнопка "..index..": "..message
+        autoStatus.Text=tr("Кнопка ")..index..": "..message
     else
         state.auto=false
         refreshAuto()
-        autoStatus.Text="Авто отключено: "..message
+        autoStatus.Text=tr("Авто отключено: ")..message
         warn("MATH HELPER AUTO:",message)
     end
 end
-print("MATH HELPER: запущен; авто выключено, включается кнопкой")
+print(tr("MATH HELPER: запущен; авто выключено, включается кнопкой"))
 task.spawn(function()
     while state.running and panel.Parent do
         task.wait(0.25)
         if not state.running then break end
         local ok,err=pcall(update)
         if not ok then
-            label.Text="Ошибка: "..tostring(err)
+            label.Text=tr("Ошибка: ")..tostring(err)
             warn("MATH HELPER:",err)
             break
         end
